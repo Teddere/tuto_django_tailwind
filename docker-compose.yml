@@ -1,0 +1,55 @@
+
+  #flower: # Permet de surveiller, visualiser et administrer les tâches
+  #  container_name: flower_ecom
+  #  image: mher./flower
+  #  environment:
+  #    - CELERY_BROKER_URL=redis://redis:6379/0
+  #  ports:
+  #    - "8888:8888"
+services:
+  web:
+    build: .
+    container_name: ecom_website #nom du conteneur afin de facilité l'accès
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./src:/usr/src/app/ # volume ce qui nous permet d'utiliser notre environnement de travail
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=1 # activer le debug
+      - DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1 # Définir les host qui sont autorisés, Pas besoin de le faire sur django
+      - CELERY_BROKER=redis://redis:6379/0
+      - CELERY_BACKEND=redis//redis:6379/0
+    depends_on:
+      - pgdb # dépendance
+      - redis
+  celery:
+    build: .
+    command: celery -A core worker -l INFO
+    volumes:
+      - ./src:/usr/src/app/
+    depends_on:
+      - web
+      - redis
+  celery_beat:
+    container_name: celery_beat_ecom
+    build: .
+    command: celery -A core beat -l INFO
+    volumes:
+      - ./src:/usr/src/app/
+    depends_on:
+      - redis
+      - celery
+  pgdb:
+    image: postgres
+    container_name: pgdb
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data # définition d'un volume appelé : pgdata permet de stocker db
+  redis:
+    image: redis:alpine # un petit paquet qui linux qui va faire tourner redis
+volumes:
+  pgdata: # fait réference au volume ajouter pour la db le va être pérsiste
